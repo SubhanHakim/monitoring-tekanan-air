@@ -55,15 +55,15 @@ class Report extends Model
     // Method untuk menghasilkan laporan
     public function generateReport()
     {
-        // Logika ini akan diimplementasikan dalam service
+        // Ubah generate menjadi generateReport
         $reportService = new \App\Services\ReportService();
-        $data = $reportService->generate($this);
-        
+        $data = $reportService->generateReport($this);
+
         $this->update([
             'data' => $data,
             'last_generated_at' => now(),
         ]);
-        
+
         return $data;
     }
 }

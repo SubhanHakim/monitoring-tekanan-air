@@ -17,7 +17,8 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             DeviceGroupSeeder::class,
             DeviceSeeder::class,
-             SensorDataSeeder::class,
+            SensorDataSeeder::class,
+            ReportSeeder::class,
         ]);
     }
 }

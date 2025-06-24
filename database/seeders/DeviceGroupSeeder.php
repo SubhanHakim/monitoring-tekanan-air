@@ -2,42 +2,56 @@
 
 namespace Database\Seeders;
 
-use App\Models\DeviceGroup;
 use Illuminate\Database\Seeder;
+use App\Models\DeviceGroup;
 
 class DeviceGroupSeeder extends Seeder
 {
+    /**
+     * Run the database seeds.
+     */
     public function run(): void
     {
+        $this->command->info('Membuat grup perangkat...');
+
+        // Buat grup perangkat berdasarkan zona
         $groups = [
             [
-                'name' => 'Wilayah Utara',
-                'type' => 'location',
-                'description' => 'Perangkat di wilayah utara kota',
-                'color' => '#4F46E5',
+                'name' => 'Zona Utara',
+                'description' => 'Perangkat di zona utara kota',
+                'type' => 'zone', // Tambahkan type
             ],
             [
-                'name' => 'Wilayah Selatan',
-                'type' => 'location',
-                'description' => 'Perangkat di wilayah selatan kota',
-                'color' => '#10B981',
+                'name' => 'Zona Selatan',
+                'description' => 'Perangkat di zona selatan kota',
+                'type' => 'zone', // Tambahkan type
             ],
             [
-                'name' => 'Proyek Perbaikan 2023',
-                'type' => 'project',
-                'description' => 'Perangkat untuk proyek perbaikan tahun 2023',
-                'color' => '#F59E0B',
+                'name' => 'Zona Timur',
+                'description' => 'Perangkat di zona timur kota',
+                'type' => 'zone', // Tambahkan type
             ],
             [
-                'name' => 'Divisi Teknik',
-                'type' => 'division',
-                'description' => 'Perangkat yang dikelola oleh divisi teknik',
-                'color' => '#EF4444',
+                'name' => 'Zona Barat',
+                'description' => 'Perangkat di zona barat kota',
+                'type' => 'zone', // Tambahkan type
+            ],
+            [
+                'name' => 'Flowmeter',
+                'description' => 'Semua perangkat tipe flowmeter',
+                'type' => 'device_type', // Tambahkan type
+            ],
+            [
+                'name' => 'Pressure Sensor',
+                'description' => 'Semua perangkat sensor tekanan',
+                'type' => 'device_type', // Tambahkan type
             ],
         ];
 
-        foreach ($groups as $group) {
-            DeviceGroup::create($group);
+        foreach ($groups as $groupData) {
+            DeviceGroup::create($groupData);
         }
+
+        $this->command->info('Grup perangkat berhasil dibuat!');
     }
 }
