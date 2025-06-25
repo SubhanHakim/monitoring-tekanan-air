@@ -20,6 +20,7 @@ return new class extends Migration
             $table->decimal('battery', 10, 5)->nullable();
             $table->decimal('pressure1', 10, 5)->nullable();
             $table->decimal('pressure2', 10, 5)->nullable();
+            $table->string('error_code')->nullable();
             $table->json('additional_data')->nullable();
             $table->timestamps();
 

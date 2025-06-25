@@ -14,12 +14,14 @@ return new class extends Migration
         Schema::create('devices', function (Blueprint $table) {
             $table->id();
             $table->foreignId('device_group_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('unit_id')->nullable()->constrained()->onDelete('cascade');
             $table->string('name');
             $table->string('device_type');
             $table->string('location');
             $table->enum('status', ['active', 'inactive', 'maintenance', 'error'])->default('active');
             $table->json('configuration')->nullable();
             $table->timestamp('last_active_at')->nullable();
+            $table->string('api_key')->nullable();
             $table->timestamps();
         });
     }

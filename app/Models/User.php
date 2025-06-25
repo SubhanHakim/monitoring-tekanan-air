@@ -45,4 +45,19 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function unit()
+    {
+        return $this->belongsTo(Unit::class);
+    }
+
+    public function isUnitUser()
+    {
+        return $this->unit_id !== null;
+    }
+
+    public function isAdmin()
+    {
+        return $this->hasRole('admin');
+    }
 }

@@ -30,7 +30,7 @@ class UnitPanelProvider extends PanelProvider
             ->path('unit')
             // ->login()
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::Blue,
             ])
             ->authGuard('web')
             ->discoverResources(in: app_path('Filament/Unit/Resources'), for: 'App\\Filament\\Unit\\Resources')
