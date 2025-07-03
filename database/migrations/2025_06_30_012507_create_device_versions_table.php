@@ -11,11 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('devices', function (Blueprint $table) {
+        Schema::create('device_versions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('device_group_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('unit_id')->nullable()->constrained()->onDelete('cascade');
-            $table->string('code')->nullable()->unique();
+            $table->foreignId('device_id')->constrained()->onDelete('cascade');
             $table->string('name');
             $table->string('device_type');
             $table->string('location')->nullable();
@@ -28,9 +26,13 @@ return new class extends Migration
                 'baik',
                 'rusak'
             ])->default('active');
+            $table->decimal('latitude', 10, 7)->nullable();
+            $table->decimal('longitude', 10, 7)->nullable();
+            $table->date('installed_at')->nullable();
+            $table->year('installation_year')->nullable();
             $table->json('configuration')->nullable();
-            $table->timestamp('last_active_at')->nullable();
-            $table->string('api_key')->nullable();
+            $table->timestamp('effective_from');
+            $table->timestamp('effective_to')->nullable();
             $table->timestamps();
         });
     }
@@ -40,6 +42,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('devices');
+        Schema::dropIfExists('device_versions');
     }
 };

@@ -1,12 +1,14 @@
 <?php
+// filepath: app/Providers/Filament/UnitPanelProvider.php
 
 namespace App\Providers\Filament;
 
+use App\Filament\Unit\Pages\Dashboard;
+use App\Http\Middleware\UnitMiddleware;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -14,11 +16,8 @@ use Filament\Widgets;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
-use Illuminate\Http\Request;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class UnitPanelProvider extends PanelProvider
@@ -28,7 +27,6 @@ class UnitPanelProvider extends PanelProvider
         return $panel
             ->id('unit')
             ->path('unit')
-            // ->login()
             ->colors([
                 'primary' => Color::Blue,
             ])
@@ -36,7 +34,7 @@ class UnitPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Unit/Resources'), for: 'App\\Filament\\Unit\\Resources')
             ->discoverPages(in: app_path('Filament/Unit/Pages'), for: 'App\\Filament\\Unit\\Pages')
             ->pages([
-                Pages\Dashboard::class,
+                Dashboard::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Unit/Widgets'), for: 'App\\Filament\\Unit\\Widgets')
             ->widgets([
@@ -56,7 +54,9 @@ class UnitPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-                'role:unit',
-            ]);
+                UnitMiddleware::class, // GUNAKAN CUSTOM MIDDLEWARE
+            ])
+            ->brandName('Unit Monitoring')
+            ->favicon(asset('favicon.ico'));
     }
 }

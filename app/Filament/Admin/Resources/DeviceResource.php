@@ -17,13 +17,13 @@ class DeviceResource extends Resource
     protected static ?string $model = Device::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-device-tablet';
-    
+
     protected static ?string $navigationLabel = 'Perangkat IOT';
-    
+
     protected static ?string $modelLabel = 'Perangkat';
-    
+
     protected static ?string $pluralModelLabel = 'Perangkat';
-    
+
     protected static ?string $navigationGroup = 'Manajemen Perangkat';
 
     public static function form(Form $form): Form
@@ -36,7 +36,7 @@ class DeviceResource extends Resource
                             ->label('Nama Perangkat')
                             ->required()
                             ->maxLength(255),
-                            
+
                         Forms\Components\Select::make('device_type')
                             ->label('Tipe Perangkat')
                             ->options([
@@ -45,18 +45,18 @@ class DeviceResource extends Resource
                                 'water_level' => 'Sensor Level Air',
                             ])
                             ->required(),
-                            
+
                         Forms\Components\TextInput::make('location')
                             ->label('Lokasi')
                             ->required()
                             ->maxLength(255),
-                            
+
                         // Tambahkan field untuk grup perangkat
                         Forms\Components\Select::make('device_group_id')
                             ->label('Grup Perangkat')
                             ->relationship('group', 'name')
                             ->options(
-                                fn () => DeviceGroup::all()->pluck('name', 'id')
+                                fn() => DeviceGroup::all()->pluck('name', 'id')
                             )
                             ->searchable()
                             ->preload()
@@ -79,7 +79,7 @@ class DeviceResource extends Resource
                                 Forms\Components\ColorPicker::make('color')
                                     ->label('Warna'),
                             ]),
-                            
+
                         Forms\Components\Select::make('status')
                             ->label('Status')
                             ->options([
@@ -89,12 +89,12 @@ class DeviceResource extends Resource
                                 'error' => 'Error',
                             ])
                             ->default('active'),
-                            
+
                         Forms\Components\DateTimePicker::make('last_active_at')
                             ->label('Terakhir Aktif')
                             ->nullable(),
                     ])->columns(2),
-                    
+
                 Forms\Components\Section::make('Konfigurasi')
                     ->schema([
                         Forms\Components\KeyValue::make('configuration')
@@ -115,11 +115,11 @@ class DeviceResource extends Resource
                     ->label('Nama Perangkat')
                     ->searchable()
                     ->sortable(),
-                    
+
                 Tables\Columns\TextColumn::make('device_type')
                     ->label('Tipe Perangkat')
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                    ->formatStateUsing(fn(string $state): string => match ($state) {
                         'pressure_sensor' => 'Sensor Tekanan',
                         'flow_meter' => 'Flow Meter',
                         'water_level' => 'Sensor Level Air',
@@ -130,24 +130,24 @@ class DeviceResource extends Resource
                         'success' => 'flow_meter',
                         'warning' => 'water_level',
                     ]),
-                    
+
                 Tables\Columns\TextColumn::make('location')
                     ->label('Lokasi')
                     ->searchable()
                     ->sortable(),
-                    
+
                 // Tambahkan kolom untuk grup perangkat
                 Tables\Columns\TextColumn::make('group.name')
                     ->label('Grup')
                     ->badge()
-                    ->color(fn ($record) => $record->group?->color ?? 'gray')
+                    ->color(fn($record) => $record->group?->color ?? 'gray')
                     ->searchable()
                     ->sortable(),
-                    
+
                 Tables\Columns\TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                    ->formatStateUsing(fn(string $state): string => match ($state) {
                         'active' => 'Aktif',
                         'inactive' => 'Tidak Aktif',
                         'maintenance' => 'Dalam Perawatan',
@@ -160,12 +160,12 @@ class DeviceResource extends Resource
                         'warning' => 'maintenance',
                         'danger' => 'error',
                     ]),
-                    
+
                 Tables\Columns\TextColumn::make('last_active_at')
                     ->label('Terakhir Aktif')
                     ->dateTime('d M Y H:i')
                     ->sortable(),
-                    
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Tanggal Dibuat')
                     ->dateTime('d M Y')
@@ -180,7 +180,7 @@ class DeviceResource extends Resource
                         'flow_meter' => 'Flow Meter',
                         'water_level' => 'Sensor Level Air',
                     ]),
-                    
+
                 Tables\Filters\SelectFilter::make('status')
                     ->label('Status')
                     ->options([
@@ -189,12 +189,12 @@ class DeviceResource extends Resource
                         'maintenance' => 'Dalam Perawatan',
                         'error' => 'Error',
                     ]),
-                    
+
                 // Tambahkan filter untuk grup perangkat
                 Tables\Filters\SelectFilter::make('device_group_id')
                     ->label('Grup')
                     ->relationship('group', 'name'),
-                    
+
                 Tables\Filters\Filter::make('last_active_at')
                     ->form([
                         Forms\Components\DatePicker::make('active_from')
@@ -206,11 +206,11 @@ class DeviceResource extends Resource
                         return $query
                             ->when(
                                 $data['active_from'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('last_active_at', '>=', $date),
+                                fn(Builder $query, $date): Builder => $query->whereDate('last_active_at', '>=', $date),
                             )
                             ->when(
                                 $data['active_until'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('last_active_at', '<=', $date),
+                                fn(Builder $query, $date): Builder => $query->whereDate('last_active_at', '<=', $date),
                             );
                     }),
             ])
@@ -246,6 +246,18 @@ class DeviceResource extends Resource
         return [
             //
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        // Jika user adalah role 'unit', filter berdasarkan unit mereka
+        if (auth()->user()->role === 'unit') {
+            $query->where('unit_id', auth()->user()->unit_id);
+        }
+
+        return $query;
     }
 
     public static function getPages(): array

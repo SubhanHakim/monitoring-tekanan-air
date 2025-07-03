@@ -1,6 +1,7 @@
+{{-- filepath: resources/views/filament/unit/pages/dashboard.blade.php --}}
 <x-filament-panels::page>
     <div class="fi-page-header mb-6">
-        <h1 class="fi-page-title text-2xl font-bold tracking-tight text-gray-950 dark:text-white">
+        <h1 class="fi-page-title text-2xl font-bold tracking-tight text-gray-950 dark:text-white">Pelayanan
             {{ $unitName }}
         </h1>
         <p class="fi-page-description mt-2 text-sm text-gray-600 dark:text-gray-400">
@@ -11,8 +12,7 @@
     <!-- Status Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <!-- Card 1: Total Perangkat -->
-        <div
-            class="fi-section rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+        <div class="fi-section rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
             <div class="flex justify-between items-center">
                 <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Perangkat</div>
                 <div class="text-2xl font-bold text-gray-900 dark:text-white">{{ $devices->count() }}</div>
@@ -23,8 +23,7 @@
             </div>
         </div>
         <!-- Card 2: Perangkat Aktif -->
-        <div
-            class="fi-section rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+        <div class="fi-section rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
             <div class="flex justify-between items-center">
                 <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Perangkat Aktif</div>
                 <div class="text-2xl font-bold text-success-600 dark:text-success-400">{{ $activeDevices }}</div>
@@ -35,8 +34,7 @@
             </div>
         </div>
         <!-- Card 3: Perangkat Offline -->
-        <div
-            class="fi-section rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+        <div class="fi-section rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
             <div class="flex justify-between items-center">
                 <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Perangkat Offline</div>
                 <div class="text-2xl font-bold text-warning-600 dark:text-warning-400">{{ $offlineDevices }}</div>
@@ -47,8 +45,7 @@
             </div>
         </div>
         <!-- Card 4: Perangkat Error -->
-        <div
-            class="fi-section rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+        <div class="fi-section rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
             <div class="flex justify-between items-center">
                 <div class="text-sm font-medium text-gray-500 dark:text-gray-400">Perangkat Error</div>
                 <div class="text-2xl font-bold text-danger-600 dark:text-danger-400">{{ $errorDevices }}</div>
@@ -60,37 +57,79 @@
         </div>
     </div>
 
+    <!-- Device Filter -->
+    <div class="fi-section rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10 mb-6">
+        <div class="flex flex-wrap items-center gap-4">
+            <div class="flex items-center gap-2">
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Filter Perangkat:</label>
+                <select id="deviceFilter" class="fi-select-input rounded-lg border-gray-300 text-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    <option value="all">Semua Perangkat</option>
+                    @foreach($devices as $device)
+                        <option value="{{ $device->id }}">{{ $device->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="toggleAllDevices" class="fi-btn fi-btn-size-sm bg-primary-600 text-white px-3 py-1.5 rounded-lg hover:bg-primary-700">
+                    Tampilkan Semua
+                </button>
+                <button id="hideAllDevices" class="fi-btn fi-btn-size-sm bg-gray-600 text-white px-3 py-1.5 rounded-lg hover:bg-gray-700">
+                    Sembunyikan Semua
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Charts -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="grid grid-cols-1 gap-6 mb-6">
         <!-- Chart 1: Tekanan Air -->
-        <div
-            class="fi-section rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+        <div class="fi-section rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
             <div class="mb-4">
                 <h2 class="fi-section-header-heading text-base font-semibold leading-6 text-gray-950 dark:text-white">
                     Grafik Tekanan Air (Real-time)
                 </h2>
             </div>
-            <div class="h-80">
+            <div class="h-96">
                 <canvas id="pressureChart"></canvas>
             </div>
         </div>
         <!-- Chart 2: Flowrate -->
-        <div
-            class="fi-section rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+        <div class="fi-section rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
             <div class="mb-4">
                 <h2 class="fi-section-header-heading text-base font-semibold leading-6 text-gray-950 dark:text-white">
                     Grafik Flowrate (Real-time)
                 </h2>
             </div>
-            <div class="h-80">
+            <div class="h-96">
                 <canvas id="flowrateChart"></canvas>
+            </div>
+        </div>
+        <!-- Chart 3: Battery -->
+        <div class="fi-section rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+            <div class="mb-4">
+                <h2 class="fi-section-header-heading text-base font-semibold leading-6 text-gray-950 dark:text-white">
+                    Grafik Battery (Real-time)
+                </h2>
+            </div>
+            <div class="h-96">
+                <canvas id="batteryChart"></canvas>
+            </div>
+        </div>
+        <!-- Chart 4: Totalizer -->
+        <div class="fi-section rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+            <div class="mb-4">
+                <h2 class="fi-section-header-heading text-base font-semibold leading-6 text-gray-950 dark:text-white">
+                    Grafik Totalizer (Real-time)
+                </h2>
+            </div>
+            <div class="h-96">
+                <canvas id="totalizerChart"></canvas>
             </div>
         </div>
     </div>
 
     <!-- Device List -->
-    <div
-        class="fi-section rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+    <div class="fi-section rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
         <div class="mb-4">
             <h2 class="fi-section-header-heading text-base font-semibold leading-6 text-gray-950 dark:text-white">
                 Daftar Perangkat
@@ -102,38 +141,22 @@
                     <x-heroicon-o-device-tablet class="h-6 w-6 text-primary-500" />
                 </div>
                 <h2 class="text-xl font-bold tracking-tight">Tidak ada perangkat</h2>
-                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Tidak ada perangkat yang terdaftar untuk unit
-                    ini.</p>
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Tidak ada perangkat yang terdaftar untuk unit ini.</p>
             </div>
         @else
             <div class="overflow-x-auto">
                 <table class="fi-ta-table w-full table-auto divide-y divide-gray-200 text-start dark:divide-white/5">
                     <thead>
                         <tr class="bg-gray-50 dark:bg-white/5">
-                            <th
-                                class="fi-ta-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">
-                                ID</th>
-                            <th
-                                class="fi-ta-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">
-                                Nama Perangkat</th>
-                            <th
-                                class="fi-ta-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">
-                                Lokasi</th>
-                            <th
-                                class="fi-ta-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">
-                                Status</th>
-                            <th
-                                class="fi-ta-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">
-                                Baterai</th>
-                            <th
-                                class="fi-ta-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">
-                                Tekanan</th>
-                            <th
-                                class="fi-ta-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">
-                                Flowrate</th>
-                            <th
-                                class="fi-ta-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">
-                                Terakhir Update</th>
+                            <th class="fi-ta-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">ID</th>
+                            <th class="fi-ta-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">Nama Perangkat</th>
+                            <th class="fi-ta-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">Lokasi</th>
+                            <th class="fi-ta-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">Status</th>
+                            <th class="fi-ta-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">Baterai</th>
+                            <th class="fi-ta-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">Tekanan</th>
+                            <th class="fi-ta-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">Flowrate</th>
+                            <th class="fi-ta-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">Totalizer</th>
+                            <th class="fi-ta-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">Terakhir Update</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200 dark:divide-white/5">
@@ -156,31 +179,21 @@
                                 }
                             @endphp
                             <tr id="device-{{ $device->id }}" class="device-row device-status-{{ $status }}">
-                                <td class="fi-ta-cell px-3 py-4 text-sm text-gray-600 dark:text-gray-400">
-                                    {{ $device->id }}</td>
+                                <td class="fi-ta-cell px-3 py-4 text-sm text-gray-600 dark:text-gray-400">{{ $device->id }}</td>
                                 <td class="fi-ta-cell px-3 py-4 text-sm text-gray-600 dark:text-gray-400">
                                     <div class="font-medium text-gray-900 dark:text-gray-200">{{ $device->name }}</div>
                                 </td>
+                                <td class="fi-ta-cell px-3 py-4 text-sm text-gray-600 dark:text-gray-400">{{ $device->location ?? 'N/A' }}</td>
                                 <td class="fi-ta-cell px-3 py-4 text-sm text-gray-600 dark:text-gray-400">
-                                    {{ $device->location ?? 'N/A' }}</td>
-                                <td class="fi-ta-cell px-3 py-4 text-sm text-gray-600 dark:text-gray-400">
-                                    <span
-                                        class="fi-badge inline-flex items-center justify-center whitespace-nowrap rounded-full bg-{{ $statusColor }}-500/10 px-2 py-0.5 text-{{ $statusColor }}-600 ring-1 ring-inset ring-{{ $statusColor }}-600/10 dark:bg-{{ $statusColor }}-500/10 dark:text-{{ $statusColor }}-400 dark:ring-{{ $statusColor }}-400/20">
+                                    <span class="fi-badge inline-flex items-center justify-center whitespace-nowrap rounded-full bg-{{ $statusColor }}-500/10 px-2 py-0.5 text-{{ $statusColor }}-600 ring-1 ring-inset ring-{{ $statusColor }}-600/10 dark:bg-{{ $statusColor }}-500/10 dark:text-{{ $statusColor }}-400 dark:ring-{{ $statusColor }}-400/20">
                                         {{ $statusText }}
                                     </span>
                                 </td>
-                                <td
-                                    class="fi-ta-cell px-3 py-4 text-sm text-gray-600 dark:text-gray-400 device-battery">
-                                    {{ $lastData->battery ?? 'N/A' }}%</td>
-                                <td
-                                    class="fi-ta-cell px-3 py-4 text-sm text-gray-600 dark:text-gray-400 device-pressure">
-                                    {{ $lastData->pressure1 ?? 'N/A' }} bar</td>
-                                <td
-                                    class="fi-ta-cell px-3 py-4 text-sm text-gray-600 dark:text-gray-400 device-flowrate">
-                                    {{ $lastData->flowrate ?? 'N/A' }} L/s</td>
-                                <td
-                                    class="fi-ta-cell px-3 py-4 text-sm text-gray-600 dark:text-gray-400 device-last-update">
-                                    {{ $lastData ? $lastData->recorded_at->diffForHumans() : 'N/A' }}</td>
+                                <td class="fi-ta-cell px-3 py-4 text-sm text-gray-600 dark:text-gray-400 device-battery">{{ $lastData->battery ?? 'N/A' }}%</td>
+                                <td class="fi-ta-cell px-3 py-4 text-sm text-gray-600 dark:text-gray-400 device-pressure">{{ $lastData->pressure1 ?? 'N/A' }} bar</td>
+                                <td class="fi-ta-cell px-3 py-4 text-sm text-gray-600 dark:text-gray-400 device-flowrate">{{ $lastData->flowrate ?? 'N/A' }} L/s</td>
+                                <td class="fi-ta-cell px-3 py-4 text-sm text-gray-600 dark:text-gray-400 device-totalizer">{{ $lastData->totalizer ?? 'N/A' }} L</td>
+                                <td class="fi-ta-cell px-3 py-4 text-sm text-gray-600 dark:text-gray-400 device-last-update">{{ $lastData ? $lastData->recorded_at->diffForHumans() : 'N/A' }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -195,6 +208,7 @@
         <script>
             // Data awal
             const initialData = @json($latestData);
+            let currentFilter = 'all';
 
             // Palet warna menarik & cukup banyak
             const colors = [
@@ -215,41 +229,59 @@
                 return color.replace('1)', `${alpha})`);
             }
 
+            // Common chart options tanpa zoom
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        onClick: function(e, legendItem) {
+                            const index = legendItem.datasetIndex;
+                            const chart = this.chart;
+                            const meta = chart.getDatasetMeta(index);
+                            
+                            meta.hidden = meta.hidden === null ? !chart.data.datasets[index].hidden : null;
+                            chart.update();
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'minute'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Waktu'
+                        }
+                    }
+                }
+            };
+
             // Chart untuk tekanan
             const pressureChartCtx = document.getElementById('pressureChart');
             const pressureChart = new Chart(pressureChartCtx, {
                 type: 'line',
-                data: {
-                    datasets: []
-                },
+                data: { datasets: [] },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    ...commonOptions,
                     scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'minute'
-                            },
-                            title: {
-                                display: true,
-                                text: 'Waktu'
-                            }
-                        },
+                        ...commonOptions.scales,
                         y: {
                             title: {
                                 display: true,
                                 text: 'Tekanan (bar)'
                             }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'top'
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false
                         }
                     }
                 }
@@ -259,37 +291,56 @@
             const flowrateChartCtx = document.getElementById('flowrateChart');
             const flowrateChart = new Chart(flowrateChartCtx, {
                 type: 'line',
-                data: {
-                    datasets: []
-                },
+                data: { datasets: [] },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    ...commonOptions,
                     scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'minute'
-                            },
-                            title: {
-                                display: true,
-                                text: 'Waktu'
-                            }
-                        },
+                        ...commonOptions.scales,
                         y: {
                             title: {
                                 display: true,
                                 text: 'Flowrate (L/s)'
                             }
                         }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'top'
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false
+                    }
+                }
+            });
+
+            // Chart untuk battery
+            const batteryChartCtx = document.getElementById('batteryChart');
+            const batteryChart = new Chart(batteryChartCtx, {
+                type: 'line',
+                data: { datasets: [] },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        ...commonOptions.scales,
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Battery Level (%)'
+                            },
+                            min: 0,
+                            max: 100
+                        }
+                    }
+                }
+            });
+
+            // Chart untuk totalizer
+            const totalizerChartCtx = document.getElementById('totalizerChart');
+            const totalizerChart = new Chart(totalizerChartCtx, {
+                type: 'line',
+                data: { datasets: [] },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        ...commonOptions.scales,
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Totalizer (L)'
+                            }
                         }
                     }
                 }
@@ -300,11 +351,19 @@
                 let deviceIndex = 0;
                 pressureChart.data.datasets = [];
                 flowrateChart.data.datasets = [];
+                batteryChart.data.datasets = [];
+                totalizerChart.data.datasets = [];
+                
                 for (const [deviceId, readings] of Object.entries(data)) {
                     if (!readings || readings.length === 0) continue;
+                    
+                    // Filter berdasarkan perangkat yang dipilih
+                    if (currentFilter !== 'all' && deviceId !== currentFilter) continue;
+                    
                     const sortedReadings = [...readings].sort((a, b) => new Date(a.recorded_at) - new Date(b.recorded_at));
                     const deviceName = sortedReadings[0].device?.name ?? `Device ${deviceId}`;
                     const color = colors[deviceIndex % colors.length];
+                    
                     // Data untuk pressure chart
                     const pressureData = sortedReadings
                         .filter(r => r.pressure1 !== null && r.recorded_at)
@@ -312,16 +371,18 @@
                             x: new Date(reading.recorded_at),
                             y: reading.pressure1
                         }));
+                    
                     pressureChart.data.datasets.push({
                         label: deviceName,
                         data: pressureData,
                         borderColor: color,
                         backgroundColor: transparent(color, 0.18),
                         fill: true,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
                         tension: 0.4
                     });
+                    
                     // Data untuk flowrate chart
                     const flowrateData = sortedReadings
                         .filter(r => r.flowrate !== null && r.recorded_at)
@@ -329,20 +390,63 @@
                             x: new Date(reading.recorded_at),
                             y: reading.flowrate
                         }));
+                    
                     flowrateChart.data.datasets.push({
                         label: deviceName,
                         data: flowrateData,
                         borderColor: color,
                         backgroundColor: transparent(color, 0.18),
                         fill: true,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
                         tension: 0.4
                     });
+
+                    // Data untuk battery chart
+                    const batteryData = sortedReadings
+                        .filter(r => r.battery !== null && r.recorded_at)
+                        .map(reading => ({
+                            x: new Date(reading.recorded_at),
+                            y: reading.battery
+                        }));
+                    
+                    batteryChart.data.datasets.push({
+                        label: deviceName,
+                        data: batteryData,
+                        borderColor: color,
+                        backgroundColor: transparent(color, 0.18),
+                        fill: true,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        tension: 0.4
+                    });
+
+                    // Data untuk totalizer chart
+                    const totalizerData = sortedReadings
+                        .filter(r => r.totalizer !== null && r.recorded_at)
+                        .map(reading => ({
+                            x: new Date(reading.recorded_at),
+                            y: reading.totalizer
+                        }));
+                    
+                    totalizerChart.data.datasets.push({
+                        label: deviceName,
+                        data: totalizerData,
+                        borderColor: color,
+                        backgroundColor: transparent(color, 0.18),
+                        fill: true,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        tension: 0.4
+                    });
+                    
                     deviceIndex++;
                 }
+                
                 pressureChart.update();
                 flowrateChart.update();
+                batteryChart.update();
+                totalizerChart.update();
             }
 
             // Update data device dalam tabel
@@ -356,11 +460,15 @@
                         const batteryEl = deviceRow.querySelector('.device-battery');
                         const pressureEl = deviceRow.querySelector('.device-pressure');
                         const flowrateEl = deviceRow.querySelector('.device-flowrate');
+                        const totalizerEl = deviceRow.querySelector('.device-totalizer');
                         const lastUpdateEl = deviceRow.querySelector('.device-last-update');
+                        
                         if (batteryEl) batteryEl.textContent = `${latestReading.battery}%`;
                         if (pressureEl) pressureEl.textContent = `${latestReading.pressure1} bar`;
                         if (flowrateEl) flowrateEl.textContent = `${latestReading.flowrate} L/s`;
+                        if (totalizerEl) totalizerEl.textContent = `${latestReading.totalizer} L`;
                         if (lastUpdateEl) lastUpdateEl.textContent = `Baru saja`;
+                        
                         // Update status
                         const statusBadge = deviceRow.querySelector('td:nth-child(4) span');
                         let newStatus = 'active';
@@ -384,6 +492,32 @@
                     }
                 }
             }
+
+            // Event listeners untuk filter
+            document.getElementById('deviceFilter').addEventListener('change', function(e) {
+                currentFilter = e.target.value;
+                initializeCharts(initialData);
+            });
+
+            document.getElementById('toggleAllDevices').addEventListener('click', function() {
+                [pressureChart, flowrateChart, batteryChart, totalizerChart].forEach(chart => {
+                    chart.data.datasets.forEach((dataset, index) => {
+                        const meta = chart.getDatasetMeta(index);
+                        meta.hidden = false;
+                    });
+                    chart.update();
+                });
+            });
+
+            document.getElementById('hideAllDevices').addEventListener('click', function() {
+                [pressureChart, flowrateChart, batteryChart, totalizerChart].forEach(chart => {
+                    chart.data.datasets.forEach((dataset, index) => {
+                        const meta = chart.getDatasetMeta(index);
+                        meta.hidden = true;
+                    });
+                    chart.update();
+                });
+            });
 
             // Inisialisasi dengan data awal
             initializeCharts(initialData);

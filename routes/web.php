@@ -34,4 +34,21 @@ Route::get('/reports/{report}/download', function (Report $report) {
     );
 })->name('reports.download');
 
+Route::prefix('unit/api')->middleware(['auth', 'unit'])->group(function () {
+    Route::get('/latest-data', [App\Http\Controllers\Unit\DashboardApiController::class, 'getLatestData'])
+        ->name('unit.api.latest-data');
+    
+    Route::post('/manual-input', [App\Http\Controllers\Unit\DashboardApiController::class, 'manualInput'])
+        ->name('unit.api.manual-input');
+    
+    Route::get('/device-stats', [App\Http\Controllers\Unit\DashboardApiController::class, 'getDeviceStats'])
+        ->name('unit.api.device-stats');
+    
+    Route::get('/device-list', [App\Http\Controllers\Unit\DashboardApiController::class, 'getDeviceList'])
+        ->name('unit.api.device-list');
+    
+    Route::get('/device/{deviceId}/data', [App\Http\Controllers\Unit\DashboardApiController::class, 'getDeviceData'])
+        ->name('unit.api.device-data');
+});
+
 Route::get('/unit/api/latest-data', [DashboardApiController::class, 'getLatestData'])->middleware('auth');

@@ -11,6 +11,7 @@ class Device extends Model
 
     protected $fillable = [
         'name',
+        'code',
         'location',
         'unit_id',
         'api_key',
@@ -81,5 +82,10 @@ class Device extends Model
         }
 
         return 'active';
+    }
+
+    public function versions()
+    {
+        return $this->hasMany(DeviceVersion::class);
     }
 }

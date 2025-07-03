@@ -1,4 +1,4 @@
-<!-- filepath: resources/views/filament/admin/pages/sensor-data-dashboard.blade.php -->
+{{-- filepath: resources/views/filament/admin/pages/sensor-data-dashboard.blade.php --}}
 <x-filament::page>
     <div class="space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -64,6 +64,13 @@
                                 {{ isset($chartData['pressure2'][$lastIndex]) ? number_format($chartData['pressure2'][$lastIndex], 2) . ' bar' : 'N/A' }}
                             </p>
                         </div>
+
+                        <div class="p-2 border rounded-md col-span-2">
+                            <p class="text-sm text-gray-500">Totalizer</p>
+                            <p class="text-xl font-semibold">
+                                {{ isset($chartData['totalizer'][$lastIndex]) ? number_format($chartData['totalizer'][$lastIndex], 2) . ' m³' : 'N/A' }}
+                            </p>
+                        </div>
                     </div>
                     
                     <p class="mt-2 text-sm text-gray-500">Terakhir diperbarui: {{ $lastTimestamp }}</p>
@@ -100,6 +107,12 @@
                     <div class="mt-4 h-80" id="pressure2Chart"></div>
                 </div>
             </div>
+
+            <!-- Totalizer Chart -->
+            <div class="p-4 bg-white rounded-lg shadow">
+                <h2 class="text-lg font-medium text-gray-900">Grafik Totalizer</h2>
+                <div class="mt-4 h-80" id="totalizerChart"></div>
+            </div>
         </div>
     </div>
     
@@ -121,112 +134,89 @@
         
         function renderCharts() {
             const chartData = @json($chartData);
-            
+
             if (!chartData.labels || chartData.labels.length === 0) {
                 return;
             }
-            
+
             // Common chart options
             const commonOptions = {
                 chart: {
                     type: 'line',
                     height: 320,
-                    zoom: {
-                        enabled: true,
-                    },
-                    toolbar: {
-                        show: true,
-                    },
-                    animations: {
-                        enabled: false,
-                    },
+                    zoom: { enabled: true },
+                    toolbar: { show: true },
+                    animations: { enabled: false },
                 },
-                stroke: {
-                    curve: 'smooth',
-                    width: 3,
-                },
-                xaxis: {
-                    categories: chartData.labels,
-                },
-                dataLabels: {
-                    enabled: false,
-                },
-                tooltip: {
-                    shared: true,
-                    intersect: false,
-                },
+                stroke: { curve: 'smooth', width: 3 },
+                xaxis: { categories: chartData.labels },
+                dataLabels: { enabled: false },
+                tooltip: { shared: true, intersect: false },
             };
-            
+
             // Flowrate Chart
             if (document.getElementById('flowrateChart')) {
-                const flowrateChart = new ApexCharts(document.getElementById('flowrateChart'), {
+                new ApexCharts(document.getElementById('flowrateChart'), {
                     ...commonOptions,
                     series: [{
                         name: 'Flowrate (l/s)',
-                        data: chartData.flowrate,
+                        data: chartData.flowrate ?? [],
                     }],
-                    yaxis: {
-                        title: {
-                            text: 'Flowrate (l/s)',
-                        },
-                    },
+                    yaxis: { title: { text: 'Flowrate (l/s)' } },
                     colors: ['#1A56DB'],
-                });
-                flowrateChart.render();
+                }).render();
             }
-            
+
             // Battery Chart
             if (document.getElementById('batteryChart')) {
-                const batteryChart = new ApexCharts(document.getElementById('batteryChart'), {
+                new ApexCharts(document.getElementById('batteryChart'), {
                     ...commonOptions,
                     series: [{
                         name: 'Baterai (Volt)',
-                        data: chartData.battery,
+                        data: chartData.battery ?? [],
                     }],
-                    yaxis: {
-                        title: {
-                            text: 'Baterai (Volt)',
-                        },
-                    },
+                    yaxis: { title: { text: 'Baterai (Volt)' } },
                     colors: ['#16A34A'],
-                });
-                batteryChart.render();
+                }).render();
             }
-            
+
             // Pressure1 Chart
             if (document.getElementById('pressure1Chart')) {
-                const pressure1Chart = new ApexCharts(document.getElementById('pressure1Chart'), {
+                new ApexCharts(document.getElementById('pressure1Chart'), {
                     ...commonOptions,
                     series: [{
                         name: 'Tekanan 1 (bar)',
-                        data: chartData.pressure1,
+                        data: chartData.pressure1 ?? [],
                     }],
-                    yaxis: {
-                        title: {
-                            text: 'Tekanan (bar)',
-                        },
-                    },
+                    yaxis: { title: { text: 'Tekanan (bar)' } },
                     colors: ['#DC2626'],
-                });
-                pressure1Chart.render();
+                }).render();
             }
-            
+
             // Pressure2 Chart
             if (document.getElementById('pressure2Chart')) {
-                const pressure2Chart = new ApexCharts(document.getElementById('pressure2Chart'), {
+                new ApexCharts(document.getElementById('pressure2Chart'), {
                     ...commonOptions,
                     series: [{
                         name: 'Tekanan 2 (bar)',
-                        data: chartData.pressure2,
+                        data: chartData.pressure2 ?? [],
                     }],
-                    yaxis: {
-                        title: {
-                            text: 'Tekanan (bar)',
-                        },
-                    },
+                    yaxis: { title: { text: 'Tekanan (bar)' } },
                     colors: ['#9333EA'],
-                });
-                pressure2Chart.render();
+                }).render();
+            }
+
+            // Totalizer Chart
+            if (document.getElementById('totalizerChart')) {
+                new ApexCharts(document.getElementById('totalizerChart'), {
+                    ...commonOptions,
+                    series: [{
+                        name: 'Totalizer (m³)',
+                        data: chartData.totalizer ?? [],
+                    }],
+                    yaxis: { title: { text: 'Totalizer (m³)' } },
+                    colors: ['#F59E42'],
+                }).render();
             }
         }
     </script>

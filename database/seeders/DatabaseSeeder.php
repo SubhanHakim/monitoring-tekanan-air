@@ -16,9 +16,9 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             UnitSeeder::class,
-            UserSeeder::class,
-            DeviceGroupSeeder::class,
-            DeviceSeeder::class,
+            UserSeeder::class,  
+            // DeviceSeeder::class,
+            ManometerSeeder::class,
             SensorDataSeeder::class,
         ]);
     }
