@@ -2,36 +2,39 @@
 
 namespace Database\Seeders;
 
-use App\Models\Unit;
 use Illuminate\Database\Seeder;
+use App\Models\Unit;
 
 class UnitSeeder extends Seeder
 {
-    public function run(): void
+    public function run()
     {
-        $units = [
-            [
-                'name' => 'Unit Perumahan Cikarang',
-                'location' => 'Cikarang, Bekasi',
-                'description' => 'Unit monitoring tekanan air untuk kawasan perumahan di Cikarang',
-                'status' => 'active',
-            ],
-            [
-                'name' => 'Unit Industri Karawang',
-                'location' => 'Karawang, Jawa Barat',
-                'description' => 'Unit monitoring tekanan air untuk kawasan industri di Karawang',
-                'status' => 'active',
-            ],
-            [
-                'name' => 'Unit Apartemen Kemayoran',
-                'location' => 'Kemayoran, Jakarta',
-                'description' => 'Unit monitoring tekanan air untuk kompleks apartemen di Kemayoran',
-                'status' => 'active',
-            ],
-        ];
+        Unit::create([
+            'name' => 'Unit Apartemen Kemayoran',
+            'location' => 'Kemayoran, Jakarta',
+            'description' => 'Unit monitoring tekanan air untuk kompleks apartemen di Kemayoran',
+            'status' => 'active',
+        ]);
 
-        foreach ($units as $unitData) {
-            Unit::create($unitData);
-        }
+        Unit::create([
+            'name' => 'Unit Apartemen Menteng',
+            'location' => 'Menteng, Jakarta Pusat',
+            'description' => 'Unit monitoring tekanan air untuk kompleks apartemen di Menteng',
+            'status' => 'active',
+        ]);
+
+        Unit::create([
+            'name' => 'Unit Apartemen Kelapa Gading',
+            'location' => 'Kelapa Gading, Jakarta Utara',
+            'description' => 'Unit monitoring tekanan air untuk kompleks apartemen di Kelapa Gading',
+            'status' => 'active',
+        ]);
+
+        Unit::create([
+            'name' => 'Unit Apartemen Pondok Indah',
+            'location' => 'Pondok Indah, Jakarta Selatan',
+            'description' => 'Unit monitoring tekanan air untuk kompleks apartemen di Pondok Indah',
+            'status' => 'inactive',
+        ]);
     }
 }

@@ -9,6 +9,7 @@ use App\Models\SensorData;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class Dashboard extends Page
 {
@@ -35,11 +36,11 @@ class Dashboard extends Page
     public function mount()
     {
         // Filter berdasarkan unit jika user adalah role 'unit'
-        if (auth()->user()->role === 'unit') {
-            $this->deviceOptions = Device::where('unit_id', auth()->user()->unit_id)->pluck('name', 'id')->toArray();
-            $this->totalDevice = Device::where('unit_id', auth()->user()->unit_id)->count();
+        if (Auth::user()->role === 'unit') {
+            $this->deviceOptions = Device::where('unit_id', Auth::user()->unit_id)->pluck('name', 'id')->toArray();
+            $this->totalDevice = Device::where('unit_id', Auth::user()->unit_id)->count();
             $this->totalSensorData = SensorData::whereHas('device', function ($q) {
-                $q->where('unit_id', auth()->user()->unit_id);
+                $q->where('unit_id', Auth::user()->unit_id);
             })->count();
         } else {
             $this->deviceOptions = Device::pluck('name', 'id')->toArray();

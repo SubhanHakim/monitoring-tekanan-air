@@ -11,6 +11,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class SensorDataResource extends Resource
 {
@@ -163,9 +164,9 @@ class SensorDataResource extends Resource
         $query = parent::getEloquentQuery();
 
         // Jika user adalah role 'unit', filter berdasarkan unit mereka
-        if (auth()->user()->role === 'unit') {
+        if (Auth::user()->role === 'unit') {
             $query->whereHas('device', function ($q) {
-                $q->where('unit_id', auth()->user()->unit_id);
+                $q->where('unit_id', Auth::user()->unit_id);
             });
         }
 

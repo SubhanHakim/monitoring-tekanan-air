@@ -117,7 +117,8 @@
                     xaxis: {
                         categories: chartLabels
                     },
-                    colors: ['#f59e42'],                                                                                   
+                    colors: ['#f59e42'],                                                     
+                              
                 }).render();
             }
         });

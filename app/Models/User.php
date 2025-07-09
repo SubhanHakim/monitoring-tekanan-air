@@ -64,4 +64,73 @@ class User extends Authenticatable
     {
         return $this->hasRole('admin');
     }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === 'super_admin';
+    }
+
+    // ✅ TAMBAH METHOD hasRole() YANG DIPERLUKAN
+    public function hasRole(string $role): bool
+    {
+        return $this->role === $role;
+    }
+
+    // ✅ ALTERNATIVE METHOD untuk multiple roles
+    public function hasAnyRole(array $roles): bool
+    {
+        return in_array($this->role, $roles);
+    }
+
+    // ✅ METHOD untuk check role dengan array
+    public function hasRoles(array $roles): bool
+    {
+        return in_array($this->role, $roles);
+    }
+
+    // ✅ GETTER untuk role label
+    public function getRoleLabelAttribute(): string
+    {
+        return match($this->role) {
+            'admin' => 'Administrator',
+            'unit_user' => 'Unit User',
+            'super_admin' => 'Super Administrator',
+            default => 'User'
+        };
+    }
+
+    // ✅ SCOPES
+    public function scopeAdmins($query)
+    {
+        return $query->where('role', 'admin');
+    }
+
+    public function scopeUnitUsers($query)
+    {
+        return $query->where('role', 'unit_user');
+    }
+
+    public function scopeByRole($query, string $role)
+    {
+        return $query->where('role', $role);
+    }
+
+    // ✅ HELPER METHODS
+    public function canAccessUnit(Unit $unit): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+        
+        if ($this->isUnitUser()) {
+            return $this->unit_id === $unit->id;
+        }
+        
+        return false;
+    }
+
+    public function getUnitNameAttribute(): string
+    {
+        return $this->unit ? $this->unit->name : 'No Unit';
+    }
 }

@@ -13,12 +13,32 @@ return new class extends Migration
     {
         Schema::create('reports', function (Blueprint $table) {
             $table->id();
-             $table->string('name');
+            $table->string('name');
             $table->string('type'); // daily, weekly, monthly, custom
+            $table->enum('report_format', ['summary', 'detailed', 'statistical'])
+                ->default('summary');
+            $table->json('metrics')
+                ->nullable();
+            $table->enum('data_source', ['all', 'device', 'group'])
+                ->default('all');
+            $table->boolean('email_on_completion')
+                ->default(false);
+            $table->text('email_recipients')  // ✅ TAMBAHKAN INI
+                ->nullable();
+            $table->boolean('include_anomalies')  // ✅ TAMBAHKAN INI
+                ->default(false);
+            $table->decimal('anomaly_threshold', 8, 2)
+                ->nullable();
+            $table->boolean('include_charts')
+                ->default(false);
+            $table->string('chart_type')
+                ->nullable();
+            $table->string('last_generated_file')
+                ->nullable();
             $table->text('description')->nullable();
             $table->foreignId('device_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('device_group_id')->nullable()->constrained()->nullOnDelete();
-            $table->json('parameters'); // Tersimpan parameter laporan
+            $table->json('parameters')->nullable(); // Tersimpan parameter laporan
             $table->json('data')->nullable(); // Tersimpan data laporan terakhir
             $table->timestamp('start_date')->nullable();
             $table->timestamp('end_date')->nullable();
