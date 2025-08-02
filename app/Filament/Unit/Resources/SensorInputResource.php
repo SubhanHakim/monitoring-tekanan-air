@@ -6,6 +6,7 @@ namespace App\Filament\Unit\Resources;
 use App\Filament\Unit\Resources\SensorInputResource\Pages;
 use App\Models\Device;
 use App\Models\SensorData;
+use App\Imports\SensorDataImport;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -14,6 +15,8 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Filament\Notifications\Notification;
+use Maatwebsite\Excel\Facades\Excel;
+use Filament\Actions;
 
 class SensorInputResource extends Resource
 {
@@ -204,6 +207,143 @@ class SensorInputResource extends Resource
                     ->with(['device:id,name,location,unit_id'])
                     ->orderBy('recorded_at', 'desc')
             )
+            ->headerActions([
+                // ✅ TAMBAH ACTION UPLOAD CSV/EXCEL
+                Tables\Actions\Action::make('uploadCsv')
+                    ->label('Upload CSV/Excel')
+                    ->icon('heroicon-o-arrow-up-tray')
+                    ->color('success')
+                    ->form([
+                        Forms\Components\Section::make('Upload Data Sensor')
+                            ->description('Upload file CSV/Excel dengan data sensor untuk perangkat tertentu')
+                            ->schema([
+                                Forms\Components\Select::make('device_id')
+                                    ->label('Pilih Perangkat')
+                                    ->placeholder('Pilih perangkat tujuan upload')
+                                    ->options(function () {
+                                        $user = Auth::user();
+                                        $unit = $user?->unit;
+                                        
+                                        if (!$unit) return [];
+                                        
+                                        return $unit->devices()
+                                            ->select('id', 'name', 'location')
+                                            ->get()
+                                            ->mapWithKeys(function ($device) {
+                                                $label = $device->name;
+                                                if ($device->location) {
+                                                    $label .= ' (' . $device->location . ')';
+                                                }
+                                                return [$device->id => $label];
+                                            })
+                                            ->toArray();
+                                    })
+                                    ->required()
+                                    ->searchable()
+                                    ->preload()
+                                    ->helperText('Semua data dalam file akan dianggap milik perangkat ini'),
+
+                                Forms\Components\FileUpload::make('file')
+                                    ->label('File CSV/Excel')
+                                    ->required()
+                                    ->acceptedFileTypes([
+                                        'text/csv',
+                                        'application/csv',  
+                                        'application/excel',
+                                        'application/vnd.ms-excel',
+                                        'application/vnd.msexcel',
+                                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                                    ])
+                                    ->maxSize(5120) // 5MB
+                                    ->helperText('Upload file CSV atau Excel (maksimal 5MB)')
+                                    ->directory('temp-uploads'),
+
+                                Forms\Components\Placeholder::make('format_info')
+                                    ->label('Format File yang Diharapkan')
+                                    ->content('
+                                        <div class="text-sm text-gray-600">
+                                            <p><strong>Header kolom yang diperlukan:</strong></p>
+                                            <ul class="list-disc list-inside mt-2 space-y-1">
+                                                <li><code>pressure1</code> - Tekanan 1 (wajib, 0-100 bar)</li>
+                                                <li><code>flowrate</code> - Flowrate (wajib, 0-1000 L/s)</li>
+                                                <li><code>totalizer</code> - Totalizer (wajib, minimal 0 L)</li>
+                                                <li><code>battery</code> - Level baterai (wajib, 0-100%)</li>
+                                                <li><code>pressure2</code> - Tekanan 2 (opsional, 0-100 bar)</li>
+                                                <li><code>error_code</code> - Kode error (opsional, max 10 karakter)</li>
+                                                <li><code>recorded_at</code> - Waktu pencatatan (opsional, format: YYYY-MM-DD HH:MM:SS)</li>
+                                            </ul>
+                                            <p class="mt-2"><strong>Contoh:</strong> pressure1,flowrate,totalizer,battery,recorded_at</p>
+                                        </div>
+                                    ')
+                                    ->columnSpanFull(),
+                            ]),
+                    ])
+                    ->action(function (array $data) {
+                        try {
+                            $user = Auth::user();
+                            $unit = $user?->unit;
+                            
+                            // Validasi device milik unit ini
+                            $device = Device::where('id', $data['device_id'])
+                                           ->where('unit_id', $unit->id)
+                                           ->first();
+                            
+                            if (!$device) {
+                                Notification::make()
+                                    ->title('Error')
+                                    ->body('Perangkat tidak ditemukan atau tidak memiliki akses')
+                                    ->danger()
+                                    ->send();
+                                return;
+                            }
+
+                            // Get uploaded file path
+                            $filePath = storage_path('app/public/' . $data['file']);
+                            
+                            // Import data
+                            $import = new SensorDataImport($data['device_id']);
+                            Excel::import($import, $filePath);
+                            
+                            // Hapus file temporary
+                            unlink($filePath);
+                            
+                            Notification::make()
+                                ->title('Upload Berhasil!')
+                                ->body("Data sensor berhasil diupload ke perangkat: {$device->name}")
+                                ->success()
+                                ->send();
+                                
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('Upload Gagal')
+                                ->body('Error: ' . $e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    })
+                    ->modalHeading('Upload Data Sensor CSV/Excel')
+                    ->modalSubmitActionLabel('Upload')
+                    ->modalWidth('2xl'),
+
+                // ✅ TAMBAH ACTION DOWNLOAD TEMPLATE
+                Tables\Actions\Action::make('downloadTemplate')
+                    ->label('Download Template')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('info')
+                    ->action(function () {
+                        $csvContent = "pressure1,pressure2,flowrate,totalizer,battery,error_code,recorded_at\n";
+                        $csvContent .= "2.50,1.75,15.25,1500.00,85,,2024-01-01 10:00:00\n";
+                        $csvContent .= "2.60,1.80,16.30,1516.30,84,,2024-01-01 11:00:00\n";
+                        $csvContent .= "2.45,1.70,14.80,1531.10,83,E01,2024-01-01 12:00:00\n";
+                        
+                        $fileName = 'template-sensor-data.csv';
+                        $filePath = storage_path('app/public/' . $fileName);
+                        
+                        file_put_contents($filePath, $csvContent);
+                        
+                        return response()->download($filePath, $fileName)->deleteFileAfterSend();
+                    }),
+            ])
             ->columns([
                 Tables\Columns\TextColumn::make('device.name')
                     ->label('Perangkat')
@@ -303,6 +443,8 @@ class SensorInputResource extends Resource
             ->emptyStateDescription('Mulai dengan menginput data sensor pertama untuk perangkat unit Anda.')
             ->emptyStateIcon('heroicon-o-chart-bar');
     }
+
+    // ... rest of the existing methods remain the same ...
 
     public static function getPages(): array
     {

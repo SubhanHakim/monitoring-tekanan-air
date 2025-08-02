@@ -28,6 +28,8 @@ class UnitReportResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Laporan Unit';
 
+    protected static bool $shouldRegisterNavigation = false;
+
     public static function getEloquentQuery(): Builder
     {
         $user = Auth::user();
