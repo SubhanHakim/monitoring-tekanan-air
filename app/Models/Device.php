@@ -20,6 +20,11 @@ class Device extends Model
         'configuration',
         'last_active_at',
         'device_group_id',
+        'diameter',
+        'merek',
+        'jenis_distribusi',
+        'image_perangkat',
+        
     ];
 
     protected $casts = [

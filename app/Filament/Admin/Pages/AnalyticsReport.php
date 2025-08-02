@@ -25,6 +25,8 @@ class AnalyticsReport extends Page
     protected static ?string $title = 'Laporan Analitik';
     
     protected static ?int $navigationSort = 1;
+
+    protected static bool $shouldRegisterNavigation = false;
     
     protected static string $view = 'filament.admin.pages.analytics-report';
     

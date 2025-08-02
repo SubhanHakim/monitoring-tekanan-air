@@ -1,22 +1,17 @@
 <?php
+// filepath: app/Models/User.php
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'name',
         'email',
@@ -24,43 +19,35 @@ class User extends Authenticatable
         'role',
         'is_active',
         'notes',
-        
+        'unit_id',  // ✅ TAMBAHKAN INI
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',  // ✅ TAMBAHKAN CAST
         ];
     }
 
-    public function unit()
+    // ✅ PERBAIKI RELASI - TAMBAHKAN TYPE HINT
+    public function unit(): BelongsTo
     {
-        return $this->belongsTo(Unit::class);
+        return $this->belongsTo(Unit::class, 'unit_id');
     }
 
-    public function isUnitUser()
+    public function isUnitUser(): bool
     {
         return $this->unit_id !== null;
     }
 
-    public function isAdmin()
+    public function isAdmin(): bool
     {
         return $this->hasRole('admin');
     }
@@ -70,36 +57,39 @@ class User extends Authenticatable
         return $this->role === 'super_admin';
     }
 
-    // ✅ TAMBAH METHOD hasRole() YANG DIPERLUKAN
+    // ✅ PERBAIKI ROLE CHECK - TAMBAHKAN UNIT ROLE
+    public function isUnit(): bool
+    {
+        return $this->hasRole('unit');
+    }
+
     public function hasRole(string $role): bool
     {
         return $this->role === $role;
     }
 
-    // ✅ ALTERNATIVE METHOD untuk multiple roles
     public function hasAnyRole(array $roles): bool
     {
         return in_array($this->role, $roles);
     }
 
-    // ✅ METHOD untuk check role dengan array
     public function hasRoles(array $roles): bool
     {
         return in_array($this->role, $roles);
     }
 
-    // ✅ GETTER untuk role label
+    // ✅ UPDATE ROLE LABELS
     public function getRoleLabelAttribute(): string
     {
         return match($this->role) {
             'admin' => 'Administrator',
-            'unit_user' => 'Unit User',
+            'unit' => 'Unit User',  // ✅ UBAH DARI unit_user KE unit
             'super_admin' => 'Super Administrator',
             default => 'User'
         };
     }
 
-    // ✅ SCOPES
+    // ✅ UPDATE SCOPES
     public function scopeAdmins($query)
     {
         return $query->where('role', 'admin');
@@ -107,7 +97,7 @@ class User extends Authenticatable
 
     public function scopeUnitUsers($query)
     {
-        return $query->where('role', 'unit_user');
+        return $query->where('role', 'unit');  // ✅ UBAH KE 'unit'
     }
 
     public function scopeByRole($query, string $role)
@@ -115,14 +105,19 @@ class User extends Authenticatable
         return $query->where('role', $role);
     }
 
-    // ✅ HELPER METHODS
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    // ✅ PERBAIKI HELPER METHODS
     public function canAccessUnit(Unit $unit): bool
     {
-        if ($this->isAdmin()) {
+        if ($this->isAdmin() || $this->isSuperAdmin()) {
             return true;
         }
         
-        if ($this->isUnitUser()) {
+        if ($this->isUnit()) {
             return $this->unit_id === $unit->id;
         }
         
@@ -131,6 +126,17 @@ class User extends Authenticatable
 
     public function getUnitNameAttribute(): string
     {
-        return $this->unit ? $this->unit->name : 'No Unit';
+        return $this->unit?->name ?? 'No Unit';  // ✅ USE NULL SAFE OPERATOR
+    }
+
+    // ✅ TAMBAHAN HELPER METHODS
+    public function getStatusLabelAttribute(): string
+    {
+        return $this->is_active ? 'Aktif' : 'Tidak Aktif';
+    }
+
+    public function canViewPanel(): bool
+    {
+        return $this->is_active && in_array($this->role, ['admin', 'unit', 'super_admin']);
     }
 }

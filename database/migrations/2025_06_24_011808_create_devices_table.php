@@ -17,8 +17,12 @@ return new class extends Migration
             $table->foreignId('unit_id')->nullable()->constrained()->onDelete('cascade');
             $table->string('code')->nullable()->unique();
             $table->string('name');
+            $table->string('diameter')->nullable();
+            $table->string('merek')->nullable();
             $table->string('device_type');
             $table->string('location')->nullable();
+            $table->string('jenis_distribusi')->nullable();
+            $table->string('image_perangkat')->nullable();
             $table->enum('status', [
                 'active',
                 'inactive',

@@ -3,395 +3,297 @@
 namespace App\Services;
 
 use App\Models\UnitReport;
-use App\Models\Unit;
+use App\Models\SensorData;  // ✅ GANTI Reading dengan SensorData
 use App\Models\Device;
-use App\Models\SensorData;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class UnitReportService
 {
-    public function generateReport(UnitReport $report): array
+    public function generateReport(UnitReport $unitReport): array
     {
-        $devices = $this->getDevicesForReport($report);
+        Log::info('Generating unit report:', [
+            'unit_report_id' => $unitReport->id,
+            'unit_id' => $unitReport->unit_id,
+            'report_format' => $unitReport->report_format,
+            'start_date' => $unitReport->start_date,
+            'end_date' => $unitReport->end_date,
+        ]);
 
-        return match ($report->report_format) {
-            'statistical' => $this->generateStatisticalReport($report, $devices),
-            'detailed' => $this->generateDetailedReport($report, $devices),
-            default => $this->generateSummaryReport($report, $devices),
-        };
-    }
-
-    private function getDevicesForReport(UnitReport $report)
-    {
-        return match ($report->data_source) {
-            'all' => Device::where('unit_id', $report->unit_id)->get(),
-            'device' => Device::where('id', $report->device_id)
-                ->where('unit_id', $report->unit_id)->get(),
-            'group' => Device::where('device_group_id', $report->device_group_id)
-                ->where('unit_id', $report->unit_id)->get(),
-            default => collect(),
-        };
-    }
-
-    private function generateSummaryReport(UnitReport $report, $devices): array
-    {
-        $startDate = Carbon::parse($report->start_date);
-        $endDate = Carbon::parse($report->end_date);
-
-        $data = [];
-        foreach ($devices as $device) {
-            $deviceData = SensorData::where('device_id', $device->id)
-                ->whereBetween('recorded_at', [$startDate, $endDate])
-                ->selectRaw('
-                    COUNT(*) as total_records,
-                    AVG(flowrate) as avg_flowrate,
-                    MAX(flowrate) as max_flowrate,
-                    MIN(flowrate) as min_flowrate,
-                    AVG(pressure1) as avg_pressure1,
-                    MAX(pressure1) as max_pressure1,
-                    MIN(pressure1) as min_pressure1
-                ')
-                ->first();
-
-            if (!$deviceData || $deviceData->total_records == 0) {
-                $deviceData = (object) [
-                    'total_records' => 0,
-                    'avg_flowrate' => 0,
-                    'max_flowrate' => 0,
-                    'min_flowrate' => 0,
-                    'avg_pressure1' => 0,
-                    'max_pressure1' => 0,
-                    'min_pressure1' => 0,
-                ];
-            }
-
-            $data[] = [
-                'device' => $device,
-                'statistics' => $deviceData
-            ];
-        }
-
-        return [
-            'report' => $report,
-            'unit' => $report->unit,
-            'data' => $data,
-            'devices' => $devices,
-        ];
-    }
-
-    private function generateDetailedReport(UnitReport $report, $devices): array
-    {
-        $startDate = Carbon::parse($report->start_date);
-        $endDate = Carbon::parse($report->end_date);
-
-        $data = [];
-        foreach ($devices as $device) {
-            $sensorData = SensorData::where('device_id', $device->id)
-                ->whereBetween('recorded_at', [$startDate, $endDate])
-                ->orderBy('recorded_at', 'desc')
-                ->limit(1000)
-                ->get();
-
-            $data[] = [
-                'device' => $device,
-                'sensor_data' => $sensorData
-            ];
-        }
-
-        return [
-            'report' => $report,
-            'unit' => $report->unit,
-            'data' => $data,
-            'devices' => $devices,
-        ];
-    }
-
-    private function generateStatisticalReport(UnitReport $report, $devices): array
-    {
-        $startDate = Carbon::parse($report->start_date);
-        $endDate = Carbon::parse($report->end_date);
-        $metrics = $report->metrics ?? ['flowrate', 'totalizer'];
-
-        $data = [];
-        $currentDate = $startDate->copy();
-
-        while ($currentDate->lte($endDate)) {
-            $dayData = [
-                'date' => $currentDate->format('d/m/Y'),
-                'day_name' => $currentDate->format('l'),
-                'devices' => []
-            ];
-
-            foreach ($devices as $device) {
-                $deviceData = $this->getDeviceStatisticsForDate($device, $currentDate, $metrics);
-                $dayData['devices'][$device->id] = array_merge(
-                    ['name' => $device->name],
-                    $deviceData
-                );
-            }
-
-            $data[] = $dayData;
-            $currentDate->addDay();
-        }
-
-        return [
-            'report' => $report,
-            'unit' => $report->unit,
-            'data' => $data,
-            'metrics' => $metrics,
-            'devices' => $devices,
-        ];
-    }
-
-    private function getDeviceStatisticsForDate(Device $device, Carbon $date, array $metrics): array
-    {
-        $query = SensorData::where('device_id', $device->id)
-            ->whereDate('recorded_at', $date);
-
-        $stats = [];
-
-        foreach ($metrics as $metric) {
-            $values = $query->pluck($metric)->filter()->values();
-
-            if ($values->isEmpty()) {
-                $stats[$metric] = [
-                    'min' => 0,
-                    'max' => 0,
-                    'avg' => 0,
-                    'total' => 0,
-                    'count' => 0,
-                ];
-                continue;
-            }
-
-            $stats[$metric] = [
-                'min' => round($values->min(), 2),
-                'max' => round($values->max(), 2),
-                'avg' => round($values->avg(), 2),
-                'total' => round($values->sum(), 2),
-                'count' => $values->count(),
-            ];
-
-            if ($metric === 'flowrate') {
-                $stats['volume'] = [
-                    'total_liters' => round($values->sum() * 3600 / $values->count(), 2),
-                    'total_m3' => round($values->sum() * 3600 / $values->count() / 1000, 2),
-                ];
-            }
-        }
-
-        return $stats;
-    }
-
-    public function generatePDF(UnitReport $report, array $data): string
-    {
-        try {
-            $this->ensureReportsDirectoryExists();
-
-            $html = $this->generateUnitHTML($report, $data);
-
-            Log::info('Starting Unit PDF generation', [
-                'unit_report_id' => $report->id,
-                'unit_id' => $report->unit_id,
-                'html_length' => strlen($html),
+        // ✅ QUERY SENSOR DATA untuk Unit
+        $query = SensorData::query()  // ✅ GANTI Reading dengan SensorData
+            ->with(['device', 'device.unit'])
+            ->whereBetween('created_at', [
+                $unitReport->start_date->startOfDay(),
+                $unitReport->end_date->endOfDay()
             ]);
 
-            $pdf = Pdf::loadHTML($html)
-                ->setPaper('a4', 'portrait')
-                ->setOptions([
-                    'dpi' => 150,
-                    'defaultFont' => 'sans-serif',
-                    'isHtml5ParserEnabled' => true,
-                    'isRemoteEnabled' => true,
-                ]);
+        // ✅ FILTER by Unit ID
+        if ($unitReport->unit_id) {
+            $query->whereHas('device', function ($q) use ($unitReport) {
+                $q->where('unit_id', $unitReport->unit_id);
+            });
+        }
 
-            $fileName = 'unit_report_' . $report->id . '_' . now()->format('Y-m-d_H-i-s') . '.pdf';
-            $filePath = 'reports/units/' . $fileName;
-            $fullPath = storage_path('app/' . $filePath);
+        // ✅ FILTER by Device jika spesifik
+        if ($unitReport->data_source === 'device' && $unitReport->device_id) {
+            $query->where('device_id', $unitReport->device_id);
+        }
 
-            // Ensure unit reports directory exists
-            $unitReportsDir = storage_path('app/reports/units');
-            if (!is_dir($unitReportsDir)) {
-                mkdir($unitReportsDir, 0777, true);
-            }
+        $sensorData = $query->orderBy('created_at', 'desc')->get();
 
-            $pdfOutput = $pdf->output();
+        Log::info('Sensor data found:', [
+            'count' => $sensorData->count(),
+            'report_format' => $unitReport->report_format,
+            'first_data' => $sensorData->first()?->toArray(),
+        ]);
 
-            if (empty($pdfOutput)) {
-                throw new \Exception('PDF output is empty');
-            }
+        // ✅ FORMAT DATA BERDASARKAN REPORT FORMAT
+        return $this->formatReportData($unitReport, $sensorData);
+    }
 
-            $written = file_put_contents($fullPath, $pdfOutput);
+    private function formatReportData(UnitReport $unitReport, $sensorData): array
+    {
+        // ✅ BASE DATA yang sama untuk semua format
+        $baseData = [
+            'total_readings' => $sensorData->count(),
+            'period_start' => $unitReport->start_date,
+            'period_end' => $unitReport->end_date,
+            'devices' => $sensorData->pluck('device.name')->unique()->values()->toArray(),
+        ];
 
-            if ($written === false || !file_exists($fullPath)) {
-                throw new \Exception('Gagal menyimpan PDF unit report');
-            }
+        // ✅ FORMAT BERDASARKAN REPORT FORMAT
+        switch ($unitReport->report_format) {
+            case 'summary':
+                return $this->formatSummaryReport($unitReport, $sensorData, $baseData);
+            
+            case 'detailed':
+                return $this->formatDetailedReport($unitReport, $sensorData, $baseData);
+            
+            case 'statistical':
+                return $this->formatStatisticalReport($unitReport, $sensorData, $baseData);
+            
+            default:
+                return $this->formatSummaryReport($unitReport, $sensorData, $baseData);
+        }
+    }
 
-            Log::info('Unit PDF successfully created', [
-                'unit_report_id' => $report->id,
+    // ✅ FORMAT SUMMARY REPORT
+    private function formatSummaryReport(UnitReport $unitReport, $sensorData, $baseData): array
+    {
+        // ✅ SESUAIKAN dengan field yang ada di SensorData
+        $summary = [
+            'total_readings' => $sensorData->count(),
+            'avg_pressure' => round($sensorData->avg('pressure') ?? 0, 2),  // ✅ SESUAIKAN FIELD NAME
+            'min_pressure' => round($sensorData->min('pressure') ?? 0, 2),
+            'max_pressure' => round($sensorData->max('pressure') ?? 0, 2),
+            'avg_temperature' => round($sensorData->avg('temperature') ?? 0, 2),  // ✅ SESUAIKAN FIELD NAME
+            'min_temperature' => round($sensorData->min('temperature') ?? 0, 2),
+            'max_temperature' => round($sensorData->max('temperature') ?? 0, 2),
+            'avg_flow_rate' => round($sensorData->avg('flow_rate') ?? 0, 2),  // ✅ SESUAIKAN FIELD NAME
+            'min_flow_rate' => round($sensorData->min('flow_rate') ?? 0, 2),
+            'max_flow_rate' => round($sensorData->max('flow_rate') ?? 0, 2),
+        ];
+
+        // ✅ LIMIT readings untuk summary (hanya 10 terakhir)
+        $limitedReadings = $sensorData->take(10)->map(function ($data) {
+            return [
+                'timestamp' => $data->created_at,
+                'device_name' => $data->device->name ?? 'Unknown Device',
+                'device_location' => $data->device->location ?? '-',
+                'pressure_value' => $data->pressure ?? 0,  // ✅ SESUAIKAN FIELD NAME
+                'temperature_value' => $data->temperature ?? 0,  // ✅ SESUAIKAN FIELD NAME
+                'flow_rate' => $data->flow_rate ?? 0,  // ✅ SESUAIKAN FIELD NAME
+                'status' => $data->status ?? 'normal',
+            ];
+        })->toArray();
+
+        return array_merge($baseData, [
+            'format' => 'summary',
+            'summary' => $summary,
+            'readings' => $limitedReadings,
+        ]);
+    }
+
+    // ✅ FORMAT DETAILED REPORT
+    private function formatDetailedReport(UnitReport $unitReport, $sensorData, $baseData): array
+    {
+        // ✅ SEMUA sensor data untuk detailed
+        $detailedReadings = $sensorData->map(function ($data) {
+            return [
+                'timestamp' => $data->created_at,
+                'device_name' => $data->device->name ?? 'Unknown Device',
+                'device_location' => $data->device->location ?? '-',
+                'pressure_value' => $data->pressure ?? 0,  // ✅ SESUAIKAN FIELD NAME
+                'temperature_value' => $data->temperature ?? 0,  // ✅ SESUAIKAN FIELD NAME
+                'flow_rate' => $data->flow_rate ?? 0,  // ✅ SESUAIKAN FIELD NAME
+                'status' => $data->status ?? 'normal',
+                'device_id' => $data->device_id,
+                'reading_id' => $data->id,
+            ];
+        })->toArray();
+
+        // ✅ DETAILED SUMMARY per device
+        $deviceSummary = $sensorData->groupBy('device_id')->map(function ($deviceData) {
+            $device = $deviceData->first()->device;
+            return [
+                'device_name' => $device->name ?? 'Unknown Device',
+                'device_location' => $device->location ?? '-',
+                'total_readings' => $deviceData->count(),
+                'avg_pressure' => round($deviceData->avg('pressure') ?? 0, 2),  // ✅ SESUAIKAN FIELD NAME
+                'avg_temperature' => round($deviceData->avg('temperature') ?? 0, 2),  // ✅ SESUAIKAN FIELD NAME
+                'avg_flow_rate' => round($deviceData->avg('flow_rate') ?? 0, 2),  // ✅ SESUAIKAN FIELD NAME
+                'min_pressure' => round($deviceData->min('pressure') ?? 0, 2),
+                'max_pressure' => round($deviceData->max('pressure') ?? 0, 2),
+            ];
+        })->values()->toArray();
+
+        return array_merge($baseData, [
+            'format' => 'detailed',
+            'readings' => $detailedReadings,
+            'device_summary' => $deviceSummary,
+        ]);
+    }
+
+    // ✅ FORMAT STATISTICAL REPORT
+    private function formatStatisticalReport(UnitReport $unitReport, $sensorData, $baseData): array
+    {
+        // ✅ STATISTICAL ANALYSIS
+        $pressureData = $sensorData->pluck('pressure')->filter()->values();  // ✅ SESUAIKAN FIELD NAME
+        $temperatureData = $sensorData->pluck('temperature')->filter()->values();  // ✅ SESUAIKAN FIELD NAME
+        $flowRateData = $sensorData->pluck('flow_rate')->filter()->values();  // ✅ SESUAIKAN FIELD NAME
+
+        $statistics = [
+            'pressure_stats' => [
+                'count' => $pressureData->count(),
+                'mean' => round($pressureData->avg() ?? 0, 2),
+                'median' => round($pressureData->median() ?? 0, 2),
+                'min' => round($pressureData->min() ?? 0, 2),
+                'max' => round($pressureData->max() ?? 0, 2),
+                'std_dev' => round($this->calculateStandardDeviation($pressureData->toArray()) ?? 0, 2),
+            ],
+            'temperature_stats' => [
+                'count' => $temperatureData->count(),
+                'mean' => round($temperatureData->avg() ?? 0, 2),
+                'median' => round($temperatureData->median() ?? 0, 2),
+                'min' => round($temperatureData->min() ?? 0, 2),
+                'max' => round($temperatureData->max() ?? 0, 2),
+                'std_dev' => round($this->calculateStandardDeviation($temperatureData->toArray()) ?? 0, 2),
+            ],
+            'flow_rate_stats' => [
+                'count' => $flowRateData->count(),
+                'mean' => round($flowRateData->avg() ?? 0, 2),
+                'median' => round($flowRateData->median() ?? 0, 2),
+                'min' => round($flowRateData->min() ?? 0, 2),
+                'max' => round($flowRateData->max() ?? 0, 2),
+                'std_dev' => round($this->calculateStandardDeviation($flowRateData->toArray()) ?? 0, 2),
+            ],
+        ];
+
+        // ✅ HOURLY ANALYSIS
+        $hourlyData = $sensorData->groupBy(function ($data) {
+            return $data->created_at->format('Y-m-d H:00');
+        })->map(function ($hourlyData, $hour) {
+            return [
+                'hour' => $hour,
+                'count' => $hourlyData->count(),
+                'avg_pressure' => round($hourlyData->avg('pressure') ?? 0, 2),  // ✅ SESUAIKAN FIELD NAME
+                'avg_temperature' => round($hourlyData->avg('temperature') ?? 0, 2),  // ✅ SESUAIKAN FIELD NAME
+                'avg_flow_rate' => round($hourlyData->avg('flow_rate') ?? 0, 2),  // ✅ SESUAIKAN FIELD NAME
+            ];
+        })->values()->toArray();
+
+        // ✅ DAILY ANALYSIS
+        $dailyData = $sensorData->groupBy(function ($data) {
+            return $data->created_at->format('Y-m-d');
+        })->map(function ($dailyData, $date) {
+            return [
+                'date' => $date,
+                'count' => $dailyData->count(),
+                'avg_pressure' => round($dailyData->avg('pressure') ?? 0, 2),  // ✅ SESUAIKAN FIELD NAME
+                'avg_temperature' => round($dailyData->avg('temperature') ?? 0, 2),  // ✅ SESUAIKAN FIELD NAME
+                'avg_flow_rate' => round($dailyData->avg('flow_rate') ?? 0, 2),  // ✅ SESUAIKAN FIELD NAME
+            ];
+        })->values()->toArray();
+
+        return array_merge($baseData, [
+            'format' => 'statistical',
+            'statistics' => $statistics,
+            'hourly_data' => $hourlyData,
+            'daily_data' => $dailyData,
+            'sample_readings' => $sensorData->take(5)->map(function ($data) {
+                return [
+                    'timestamp' => $data->created_at,
+                    'device_name' => $data->device->name ?? 'Unknown Device',
+                    'pressure_value' => $data->pressure ?? 0,  // ✅ SESUAIKAN FIELD NAME
+                    'temperature_value' => $data->temperature ?? 0,  // ✅ SESUAIKAN FIELD NAME
+                    'flow_rate' => $data->flow_rate ?? 0,  // ✅ SESUAIKAN FIELD NAME
+                ];
+            })->toArray(),
+        ]);
+    }
+
+    // ✅ HELPER FUNCTION untuk Standard Deviation
+    private function calculateStandardDeviation(array $data): float
+    {
+        if (empty($data)) return 0;
+        
+        $mean = array_sum($data) / count($data);
+        $variance = array_sum(array_map(function($x) use ($mean) {
+            return pow($x - $mean, 2);
+        }, $data)) / count($data);
+        
+        return sqrt($variance);
+    }
+
+    // ✅ generatePDF method tetap sama
+    public function generatePDF(UnitReport $unitReport, array $data): string
+    {
+        Log::info('Generating PDF for unit report:', [
+            'report_id' => $unitReport->id,
+            'format' => $unitReport->report_format,
+            'data_format' => $data['format'] ?? 'unknown',
+            'data_keys' => array_keys($data),
+        ]);
+
+        try {
+            $templateName = match($unitReport->report_format) {
+                'summary' => 'reports.unit-report-summary',
+                'detailed' => 'reports.unit-report-detailed', 
+                'statistical' => 'reports.unit-report-statistical',
+                default => 'reports.unit-report-summary',
+            };
+
+            $pdf = PDF::loadView($templateName, [
+                'unitReport' => $unitReport,
+                'data' => $data,
+                'generatedAt' => now(),
+            ]);
+
+            $pdf->setPaper('A4', 'portrait');
+
+            $fileName = 'unit-report-' . $unitReport->report_format . '-' . $unitReport->id . '-' . time() . '.pdf';
+            $filePath = 'unit-reports/' . $fileName;
+            
+            Storage::put($filePath, $pdf->output());
+
+            Log::info('PDF generated successfully:', [
                 'file_path' => $filePath,
-                'file_size' => filesize($fullPath),
+                'template' => $templateName,
+                'file_size' => Storage::size($filePath),
             ]);
 
             return $filePath;
+
         } catch (\Exception $e) {
-            Log::error('Unit PDF generation failed', [
-                'unit_report_id' => $report->id,
+            Log::error('PDF generation failed:', [
                 'error' => $e->getMessage(),
+                'format' => $unitReport->report_format,
+                'trace' => $e->getTraceAsString(),
             ]);
-
-            throw new \Exception('Gagal membuat PDF unit report: ' . $e->getMessage());
-        }
-    }
-
-    private function generateUnitHTML(UnitReport $report, array $data): string
-    {
-        $unit = $report->unit;
-
-        $html = '<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Laporan Unit - ' . htmlspecialchars($unit->name) . '</title>
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 20px; 
-            font-size: 12px;
-        }
-        .header { 
-            text-align: center; 
-            margin-bottom: 30px; 
-            border-bottom: 2px solid #333;
-            padding-bottom: 15px;
-        }
-        .header h1 { 
-            color: #333; 
-            margin: 0 0 10px 0;
-        }
-        .unit-info {
-            background-color: #f9f9f9;
-            padding: 15px;
-            margin: 20px 0;
-            border-left: 4px solid #007bff;
-        }
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin: 20px 0;
-        }
-        th, td { 
-            border: 1px solid #ddd; 
-            padding: 8px; 
-            text-align: left; 
-        }
-        th { 
-            background-color: #f2f2f2; 
-            font-weight: bold;
-        }
-        .number { 
-            text-align: right; 
-        }
-        .section { 
-            margin: 20px 0; 
-        }
-        .status {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            color: white;
-            font-weight: bold;
-        }
-        .status.active {
-            background-color: #28a745;
-        }
-        .status.inactive {
-            background-color: #dc3545;
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>Laporan Unit: ' . htmlspecialchars($unit->name) . '</h1>
-        <p><strong>Laporan:</strong> ' . htmlspecialchars($report->name) . '</p>
-        <p><strong>Periode:</strong> ' . htmlspecialchars($report->start_date) . ' - ' . htmlspecialchars($report->end_date) . '</p>
-        <p><strong>Dibuat pada:</strong> ' . now()->format('d/m/Y H:i:s') . '</p>
-    </div>
-    
-    <div class="unit-info">
-        <h3>Informasi Unit</h3>
-        <table>
-            <tr>
-                <th>Nama Unit</th>
-                <td>' . htmlspecialchars($unit->name) . '</td>
-            </tr>
-            <tr>
-                <th>Lokasi</th>
-                <td>' . htmlspecialchars($unit->location) . '</td>
-            </tr>
-            <tr>
-                <th>Deskripsi</th>
-                <td>' . htmlspecialchars($unit->description ?? '-') . '</td>
-            </tr>
-            <tr>
-                <th>Status</th>
-                <td>
-                    <span class="status ' . $unit->status . '">
-                        ' . ($unit->status === 'active' ? 'Aktif' : 'Tidak Aktif') . '
-                    </span>
-                </td>
-            </tr>
-        </table>
-    </div>';
-
-        // Add device data
-        if (isset($data['data']) && is_array($data['data'])) {
-            $html .= '<div class="section">
-            <h2>Data Perangkat Unit</h2>
-            <table>
-                <tr>
-                    <th>No</th>
-                    <th>Nama Perangkat</th>
-                    <th>Total Records</th>
-                    <th>Flowrate Avg</th>
-                    <th>Pressure1 Avg</th>
-                </tr>';
-
-            foreach ($data['data'] as $index => $item) {
-                $deviceName = isset($item['device']) ? $item['device']->name : 'Unknown';
-                $stats = isset($item['statistics']) ? $item['statistics'] : null;
-
-                $html .= '<tr>
-                <td class="number">' . ($index + 1) . '</td>
-                <td>' . htmlspecialchars($deviceName) . '</td>
-                <td class="number">' . ($stats ? number_format($stats->total_records) : '0') . '</td>
-                <td class="number">' . ($stats ? number_format($stats->avg_flowrate, 2) : '0.00') . '</td>
-                <td class="number">' . ($stats ? number_format($stats->avg_pressure1, 2) : '0.00') . '</td>
-            </tr>';
-            }
-
-            $html .= '</table></div>';
-        }
-
-        $html .= '</body></html>';
-
-        return $html;
-    }
-
-    private function ensureReportsDirectoryExists(): void
-    {
-        $reportPath = storage_path('app/reports/units');
-
-        if (!is_dir($reportPath)) {
-            mkdir($reportPath, 0777, true);
-        }
-
-        if (!is_writable($reportPath)) {
-            throw new \Exception('Directory unit reports tidak dapat ditulis: ' . $reportPath);
+            throw $e;
         }
     }
 }

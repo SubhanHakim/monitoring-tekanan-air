@@ -1,10 +1,12 @@
 <?php
+// filepath: app/Models/Unit.php
 
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use SebastianBergmann\CodeUnit\FunctionUnit;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Unit extends Model
 {
@@ -15,6 +17,7 @@ class Unit extends Model
         'location',
         'description',
         'status',
+        'koordinate',
     ];
 
     protected $casts = [
@@ -22,35 +25,40 @@ class Unit extends Model
         'updated_at' => 'datetime',
     ];
 
-    public function user()
+    // ✅ UBAH KE hasMany UNTUK MULTIPLE USERS PER UNIT
+    public function users(): HasMany
     {
-        return $this->hasOne(User::class);
+        return $this->hasMany(User::class, 'unit_id');
     }
 
-    public function reports()
+    // ✅ JIKA MASIH PERLU 1 USER UTAMA, BISA GUNAKAN INI
+    public function primaryUser(): HasOne
+    {
+        return $this->hasOne(User::class, 'unit_id')->where('is_primary', true);
+    }
+
+    public function reports(): HasMany
     {
         return $this->hasMany(UnitReport::class);
     }
-    
 
-    public function devices()
+    public function devices(): HasMany
     {
-        return $this->hasMany(Device::class);
+        return $this->hasMany(Device::class, 'unit_id');
     }
 
-    // ✅ TAMBAH METHOD INI
+    // ✅ METHOD HELPER
     public function isActive(): bool
     {
         return $this->status === 'active';
     }
 
-    // ✅ TAMBAH METHOD HELPER LAINNYA
     public function isInactive(): bool
     {
         return $this->status === 'inactive';
     }
 
-     public function getStatusLabelAttribute(): string
+    public function getStatusLabelAttribute(): string
     {
         return match($this->status) {
             'active' => 'Aktif',
@@ -70,6 +78,17 @@ class Unit extends Model
         };
     }
 
+    // ✅ TAMBAH METHOD UNTUK COUNT USERS
+    public function getActiveUsersCountAttribute(): int
+    {
+        return $this->users()->where('is_active', true)->count();
+    }
+
+    public function getTotalUsersCountAttribute(): int
+    {
+        return $this->users()->count();
+    }
+
     // Scopes
     public function scopeActive($query)
     {
@@ -79,5 +98,10 @@ class Unit extends Model
     public function scopeInactive($query)
     {
         return $query->where('status', 'inactive');
+    }
+
+    public function scopeWithUsersCount($query)
+    {
+        return $query->withCount('users');
     }
 }

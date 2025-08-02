@@ -1,10 +1,11 @@
 <?php
+// filepath: app/Filament/Admin/Resources/DeviceResource.php
 
 namespace App\Filament\Admin\Resources;
 
 use App\Filament\Admin\Resources\DeviceResource\Pages;
 use App\Models\Device;
-use App\Models\DeviceGroup;
+use App\Models\Unit;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -30,12 +31,19 @@ class DeviceResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Informasi Perangkat')
+                Forms\Components\Section::make('Informasi Dasar Perangkat')
                     ->schema([
+                        Forms\Components\TextInput::make('code')
+                            ->label('Kode Perangkat')
+                            ->unique(ignoreRecord: true)
+                            ->placeholder('Otomatis jika kosong')
+                            ->helperText('Kode unik perangkat (opsional)'),
+
                         Forms\Components\TextInput::make('name')
                             ->label('Nama Perangkat')
                             ->required()
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->placeholder('Contoh: Sensor Tekanan Unit A'),
 
                         Forms\Components\Select::make('device_type')
                             ->label('Tipe Perangkat')
@@ -43,43 +51,67 @@ class DeviceResource extends Resource
                                 'pressure_sensor' => 'Sensor Tekanan',
                                 'flow_meter' => 'Flow Meter',
                                 'water_level' => 'Sensor Level Air',
+                                'temperature_sensor' => 'Sensor Suhu',
+                                'ph_sensor' => 'Sensor pH',
                             ])
-                            ->required(),
-
-                        Forms\Components\TextInput::make('location')
-                            ->label('Lokasi')
                             ->required()
-                            ->maxLength(255),
+                            ->native(false),
 
-                        // Tambahkan field untuk grup perangkat
-                        Forms\Components\Select::make('device_group_id')
-                            ->label('Grup Perangkat')
-                            ->relationship('group', 'name')
+                        Forms\Components\Select::make('unit_id')
+                            ->label('Unit Lokasi')
+                            ->relationship('unit', 'name')
                             ->options(
-                                fn() => DeviceGroup::all()->pluck('name', 'id')
+                                fn() => Unit::active()->pluck('name', 'id')
                             )
                             ->searchable()
                             ->preload()
-                            ->nullable()
-                            ->createOptionForm([
-                                Forms\Components\TextInput::make('name')
-                                    ->label('Nama Grup')
-                                    ->required(),
-                                Forms\Components\Select::make('type')
-                                    ->label('Tipe Grup')
-                                    ->options([
-                                        'location' => 'Lokasi',
-                                        'division' => 'Divisi',
-                                        'project' => 'Proyek',
-                                        'custom' => 'Kustom',
-                                    ])
-                                    ->required(),
-                                Forms\Components\Textarea::make('description')
-                                    ->label('Deskripsi'),
-                                Forms\Components\ColorPicker::make('color')
-                                    ->label('Warna'),
-                            ]),
+                            ->required()
+                            ->placeholder('Pilih unit lokasi perangkat')
+                            ->helperText('Pilih unit tempat perangkat ini dipasang'),
 
+                        Forms\Components\TextInput::make('location')
+                            ->label('Lokasi Detail')
+                            ->maxLength(255)
+                            ->placeholder('Contoh: Ruang Pompa Lt. 2')
+                            ->helperText('Lokasi spesifik dalam unit'),
+                    ])->columns(2),
+
+                Forms\Components\Section::make('Spesifikasi Teknis')
+                    ->schema([
+                        Forms\Components\TextInput::make('merek')
+                            ->label('Merek/Brand')
+                            ->maxLength(255)
+                            ->placeholder('Contoh: Schneider Electric'),
+
+                        Forms\Components\TextInput::make('diameter')
+                            ->label('Diameter')
+                            ->maxLength(255)
+                            ->placeholder('Contoh: 2 inch')
+                            ->helperText('Diameter pipa/sensor (jika ada)'),
+
+                        Forms\Components\Select::make('jenis_distribusi')
+                            ->label('Jenis Distribusi')
+                            ->options([
+                                'primer' => 'Primer',
+                                'sekunder' => 'Sekunder',
+                                'tersier' => 'Tersier',
+                                'distribusi' => 'Distribusi',
+                                'transmisi' => 'Transmisi',
+                            ])
+                            ->native(false)
+                            ->placeholder('Pilih jenis distribusi'),
+
+                        Forms\Components\FileUpload::make('image_perangkat')
+                            ->label('Foto Perangkat')
+                            ->image()
+                            ->directory('devices')
+                            ->maxSize(2048)
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                            ->helperText('Upload foto perangkat (max 2MB)'),
+                    ])->columns(2),
+
+                Forms\Components\Section::make('Status & Setting')
+                    ->schema([
                         Forms\Components\Select::make('status')
                             ->label('Status')
                             ->options([
@@ -87,22 +119,38 @@ class DeviceResource extends Resource
                                 'inactive' => 'Tidak Aktif',
                                 'maintenance' => 'Dalam Perawatan',
                                 'error' => 'Error',
+                                'offline' => 'Offline',
+                                'baik' => 'Baik',
+                                'rusak' => 'Rusak',
                             ])
-                            ->default('active'),
+                            ->default('active')
+                            ->native(false)
+                            ->required(),
+
+                        Forms\Components\TextInput::make('api_key')
+                            ->label('API Key')
+                            ->maxLength(255)
+                            ->placeholder('API Key untuk komunikasi')
+                            ->password()
+                            ->revealable()
+                            ->helperText('Kunci API untuk koneksi perangkat'),
 
                         Forms\Components\DateTimePicker::make('last_active_at')
                             ->label('Terakhir Aktif')
-                            ->nullable(),
+                            ->nullable()
+                            ->displayFormat('d/m/Y H:i'),
                     ])->columns(2),
 
-                Forms\Components\Section::make('Konfigurasi')
+                Forms\Components\Section::make('Konfigurasi Lanjutan')
                     ->schema([
                         Forms\Components\KeyValue::make('configuration')
                             ->label('Konfigurasi Perangkat')
                             ->keyLabel('Parameter')
                             ->valueLabel('Nilai')
                             ->addActionLabel('Tambah Parameter')
-                            ->deletable(),
+                            ->deletable()
+                            ->nullable()
+                            ->helperText('Konfigurasi khusus untuk perangkat ini'),
                     ]),
             ]);
     }
@@ -111,64 +159,95 @@ class DeviceResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('code')
+                    ->label('Kode')
+                    ->searchable()
+                    ->sortable()
+                    ->toggleable()
+                    ->placeholder('N/A'),
+
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nama Perangkat')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->weight('bold')
+                    ->wrap(),
 
                 Tables\Columns\TextColumn::make('device_type')
-                    ->label('Tipe Perangkat')
+                    ->label('Tipe')
                     ->badge()
                     ->formatStateUsing(fn(string $state): string => match ($state) {
                         'pressure_sensor' => 'Sensor Tekanan',
                         'flow_meter' => 'Flow Meter',
-                        'water_level' => 'Sensor Level Air',
+                        'water_level' => 'Level Air',
+                        'temperature_sensor' => 'Sensor Suhu',
+                        'ph_sensor' => 'Sensor pH',
                         default => $state,
                     })
                     ->colors([
                         'primary' => 'pressure_sensor',
                         'success' => 'flow_meter',
                         'warning' => 'water_level',
+                        'info' => 'temperature_sensor',
+                        'secondary' => 'ph_sensor',
                     ]),
 
+                Tables\Columns\TextColumn::make('unit.name')
+                    ->label('Unit')
+                    ->badge()
+                    ->color('info')
+                    ->searchable()
+                    ->sortable()
+                    ->placeholder('Unit tidak ada'),
+
                 Tables\Columns\TextColumn::make('location')
-                    ->label('Lokasi')
+                    ->label('Lokasi Detail')
                     ->searchable()
-                    ->sortable(),
+                    ->limit(30)
+                    ->placeholder('Tidak ada'),
 
-                // Tambahkan kolom untuk grup perangkat
-                Tables\Columns\TextColumn::make('group.name')
-                    ->label('Grup')
-                    ->badge()
-                    ->color(fn($record) => $record->group?->color ?? 'gray')
+                Tables\Columns\TextColumn::make('merek')
+                    ->label('Merek')
                     ->searchable()
-                    ->sortable(),
+                    ->toggleable()
+                    ->placeholder('N/A'),
 
-                Tables\Columns\TextColumn::make('status')
+                Tables\Columns\BadgeColumn::make('status')
                     ->label('Status')
-                    ->badge()
                     ->formatStateUsing(fn(string $state): string => match ($state) {
                         'active' => 'Aktif',
                         'inactive' => 'Tidak Aktif',
-                        'maintenance' => 'Dalam Perawatan',
+                        'maintenance' => 'Maintenance',
                         'error' => 'Error',
+                        'offline' => 'Offline',
+                        'baik' => 'Baik',
+                        'rusak' => 'Rusak',
                         default => $state,
                     })
                     ->colors([
-                        'success' => 'active',
-                        'danger' => 'inactive',
-                        'warning' => 'maintenance',
-                        'danger' => 'error',
+                        'success' => ['active', 'baik'],
+                        'danger' => ['inactive', 'error', 'rusak'],
+                        'warning' => ['maintenance', 'offline'],
                     ]),
 
                 Tables\Columns\TextColumn::make('last_active_at')
                     ->label('Terakhir Aktif')
-                    ->dateTime('d M Y H:i')
-                    ->sortable(),
+                    ->dateTime('d/m/Y H:i')
+                    ->sortable()
+                    ->placeholder('Belum pernah')
+                    ->color(function ($state) {
+                        if (!$state) return 'gray';
+                        return $state->diffInHours(now()) < 24 ? 'success' : 'danger';
+                    }),
+
+                Tables\Columns\ImageColumn::make('image_perangkat')
+                    ->label('Foto')
+                    ->circular()
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('Tanggal Dibuat')
-                    ->dateTime('d M Y')
+                    ->label('Dibuat')
+                    ->dateTime('d/m/Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
@@ -179,23 +258,43 @@ class DeviceResource extends Resource
                         'pressure_sensor' => 'Sensor Tekanan',
                         'flow_meter' => 'Flow Meter',
                         'water_level' => 'Sensor Level Air',
-                    ]),
+                        'temperature_sensor' => 'Sensor Suhu',
+                        'ph_sensor' => 'Sensor pH',
+                    ])
+                    ->native(false),
 
                 Tables\Filters\SelectFilter::make('status')
                     ->label('Status')
                     ->options([
                         'active' => 'Aktif',
                         'inactive' => 'Tidak Aktif',
-                        'maintenance' => 'Dalam Perawatan',
+                        'maintenance' => 'Maintenance',
                         'error' => 'Error',
-                    ]),
+                        'offline' => 'Offline',
+                        'baik' => 'Baik',
+                        'rusak' => 'Rusak',
+                    ])
+                    ->native(false),
 
-                // Tambahkan filter untuk grup perangkat
-                Tables\Filters\SelectFilter::make('device_group_id')
-                    ->label('Grup')
-                    ->relationship('group', 'name'),
+                Tables\Filters\SelectFilter::make('unit_id')
+                    ->label('Unit')
+                    ->relationship('unit', 'name')
+                    ->searchable()
+                    ->preload(),
+
+                Tables\Filters\SelectFilter::make('jenis_distribusi')
+                    ->label('Jenis Distribusi')
+                    ->options([
+                        'primer' => 'Primer',
+                        'sekunder' => 'Sekunder',
+                        'tersier' => 'Tersier',
+                        'distribusi' => 'Distribusi',
+                        'transmisi' => 'Transmisi',
+                    ])
+                    ->native(false),
 
                 Tables\Filters\Filter::make('last_active_at')
+                    ->label('Status Aktivitas')
                     ->form([
                         Forms\Components\DatePicker::make('active_from')
                             ->label('Aktif Dari'),
@@ -206,54 +305,84 @@ class DeviceResource extends Resource
                         return $query
                             ->when(
                                 $data['active_from'],
-                                fn(Builder $query, $date): Builder => $query->whereDate('last_active_at', '>=', $date),
+                                fn(Builder $query, $date): Builder => $query->whereDate('last_active_at', '>=', $date)
                             )
                             ->when(
                                 $data['active_until'],
-                                fn(Builder $query, $date): Builder => $query->whereDate('last_active_at', '<=', $date),
+                                fn(Builder $query, $date): Builder => $query->whereDate('last_active_at', '<=', $date)
                             );
                     }),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\ViewAction::make()->label('Lihat'),
+                Tables\Actions\EditAction::make()->label('Edit'),
+                Tables\Actions\DeleteAction::make()->label('Hapus'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                    // Tambahkan bulk action untuk mengubah grup perangkat
-                    Tables\Actions\BulkAction::make('assignToGroup')
-                        ->label('Pindahkan ke Grup')
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->label('Hapus Terpilih'),
+                    
+                    Tables\Actions\BulkAction::make('assignToUnit')
+                        ->label('Pindahkan ke Unit')
+                        ->icon('heroicon-o-building-office')
                         ->form([
-                            Forms\Components\Select::make('device_group_id')
-                                ->label('Pilih Grup')
-                                ->options(DeviceGroup::all()->pluck('name', 'id'))
+                            Forms\Components\Select::make('unit_id')
+                                ->label('Pilih Unit')
+                                ->options(Unit::active()->pluck('name', 'id'))
+                                ->searchable()
                                 ->required(),
                         ])
                         ->action(function (array $records, array $data) {
                             foreach ($records as $record) {
-                                $record->update([
-                                    'device_group_id' => $data['device_group_id'],
-                                ]);
+                                $record->update(['unit_id' => $data['unit_id']]);
                             }
-                        }),
-                ]),
-            ]);
-    }
+                        })
+                        ->requiresConfirmation()
+                        ->modalHeading('Pindahkan Perangkat ke Unit Lain')
+                        ->modalDescription('Apakah Anda yakin ingin memindahkan perangkat terpilih ke unit yang baru?')
+                        ->modalSubmitActionLabel('Pindahkan'),
 
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
+                    Tables\Actions\BulkAction::make('updateStatus')
+                        ->label('Ubah Status')
+                        ->icon('heroicon-o-cog-6-tooth')
+                        ->form([
+                            Forms\Components\Select::make('status')
+                                ->label('Status Baru')
+                                ->options([
+                                    'active' => 'Aktif',
+                                    'inactive' => 'Tidak Aktif',
+                                    'maintenance' => 'Maintenance',
+                                    'error' => 'Error',
+                                    'offline' => 'Offline',
+                                    'baik' => 'Baik',
+                                    'rusak' => 'Rusak',
+                                ])
+                                ->required(),
+                        ])
+                        ->action(function (array $records, array $data) {
+                            foreach ($records as $record) {
+                                $record->update(['status' => $data['status']]);
+                            }
+                        })
+                        ->requiresConfirmation()
+                        ->modalHeading('Ubah Status Perangkat')
+                        ->modalDescription('Apakah Anda yakin ingin mengubah status perangkat terpilih?')
+                        ->modalSubmitActionLabel('Ubah Status'),
+                ]),
+            ])
+            ->defaultSort('created_at', 'desc')
+            ->emptyStateHeading('Belum ada perangkat')
+            ->emptyStateDescription('Mulai dengan menambahkan perangkat IoT pertama.')
+            ->emptyStateIcon('heroicon-o-device-tablet');
     }
 
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
 
-        // Jika user adalah role 'unit', filter berdasarkan unit mereka
-        if (auth()->user()->role === 'unit') {
+        // Filter berdasarkan role user
+        if (auth()->user()->role === 'unit' && auth()->user()->unit_id) {
             $query->where('unit_id', auth()->user()->unit_id);
         }
 
@@ -265,7 +394,14 @@ class DeviceResource extends Resource
         return [
             'index' => Pages\ListDevices::route('/'),
             'create' => Pages\CreateDevice::route('/create'),
+            // 'view' => Pages\ViewDevice::route('/{record}'),
             'edit' => Pages\EditDevice::route('/{record}/edit'),
         ];
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        $query = static::getEloquentQuery();
+        return $query->count();
     }
 }

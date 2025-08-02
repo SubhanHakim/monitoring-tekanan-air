@@ -1,4 +1,5 @@
 <?php
+// filepath: app/Filament/Admin/Resources/DeviceGroupResource.php
 
 namespace App\Filament\Admin\Resources;
 
@@ -26,6 +27,9 @@ class DeviceGroupResource extends Resource
     protected static ?string $navigationGroup = 'Manajemen Perangkat';
     
     protected static ?int $navigationSort = 2;
+
+    // ✅ TAMBAHKAN INI UNTUK HIDE DARI NAVIGATION
+    protected static bool $shouldRegisterNavigation = false;
 
     public static function form(Form $form): Form
     {
